@@ -10,9 +10,7 @@ pricing_dict = {"ada": 0.0004, "babbage": 0.0005, "curie": 0.002, "davinci": 0.0
 
 st.set_page_config(layout="wide")
 path = "index.html"
-
-backup = "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"
-API_KEY = "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"
+API_KEY = ""
 URL = "https://docs.google.com/document/d/1JD7mIqhSL78gsxtGmBTL3T9ErCXSGlknrPdZVHd0cWA/edit#"
 
 
