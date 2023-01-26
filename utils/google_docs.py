@@ -6,7 +6,7 @@ from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
-from utils.postrequests import create_insert_request, create_styling_request
+from utils.postrequests import create_insert_request, create_styling_request, create_paragraph_styling_request, create_bullet_styling_request, remove_bullet_styling_request
 from utils.diff_handler import get_difference, create_color_indexes
 
 
@@ -36,19 +36,33 @@ COLORS = {
 }
 
 
-def compose_doc(title="My Document", original_paragraphs=[], edited_paragraphs=[]):
+def compose_doc(title="My Document", original_paragraphs=[], edited_paragraphs=[], original_doc={}):
     """
-    Composes a document with the given title and paragraphs. Returns the document ID.
-    Works backwards from the end of the document to the beginning.
-    Add coloring for edited paragraphs.
+    1. Composes a document with the given title and paragraphs.
+    2. Works backwards from the end of the document to the beginning.
+    3. Higlights edits in edited paragraphs.
+    4. Applies original paragraph styles
+    5. Returns the document ID.
     """
+    elements = [element for element in original_doc.get("body").get("content") if element.get("paragraph")]
+
     requests = []
     for i in range(0, len(edited_paragraphs)):
+
+        # Case paragraph was not edited, insert the original paragraph.
         if edited_paragraphs[i] == "":
             end_index = len(original_paragraphs[i])
             if end_index > 1:
                 requests.append(create_styling_request(1, end_index, COLORS["black"]))
+                requests.append(create_paragraph_styling_request(1, end_index, elements[i].get("paragraph").get("paragraphStyle")))
+                if(elements[i].get("paragraph").get("bullet") != None):
+                    requests.append(create_bullet_styling_request(1, end_index))
+                    print("added bullet styling request")
+
+            requests.append(remove_bullet_styling_request(1, end_index))
             requests.append(create_insert_request(1, original_paragraphs[i]))
+
+        # Case paragraph edited, create additional styling requests.
         else:
             diff = get_difference(original_paragraphs[i], edited_paragraphs[i])
             styles = [
@@ -61,6 +75,8 @@ def compose_doc(title="My Document", original_paragraphs=[], edited_paragraphs=[
             end_index = len(edited_paragraphs[i])
             requests.append(create_styling_request(1, end_index, COLORS["black"]))
             requests.append(create_insert_request(1, edited_paragraphs[i] + "\n"))
+
+
     doc = create_doc(title)
     document_id = doc.get("documentId")
     update_document(document_id, list(reversed(requests)))
@@ -85,11 +101,15 @@ def get_doc(document_id):
     """
 
     service = authorize("write")
-    document = (
-        service.documents()
-        .get(documentId=document_id, suggestionsViewMode=SUGGEST_MODE)
-        .execute()
-    )
+    try:
+        document = (
+            service.documents()
+            .get(documentId=document_id, suggestionsViewMode=SUGGEST_MODE)
+            .execute()
+        )
+    except:
+        print("Document not found")
+        return False
     print("The title of the document is: {}".format(document.get("title")))
     return document
 
@@ -195,7 +215,6 @@ def get_paragraphs(document):
 
 def get_documentid(doc_url):
     match = re.search(r"\/document\/d\/([a-zA-Z0-9-_]+)", doc_url)
-
     if match:
         document_id = match.group(1)
         return document_id
@@ -235,8 +254,12 @@ def get_paragraphs_with_index(document):
                 paragraph_text += read_paragraph_element(elem)
             paragraph_object.append(
                 {
+                    "index": len(paragraph_object) + 1,
                     "range": {"startIndex": start_index, "endIndex": end_index},
                     "text": paragraph_text,
+                    "style": value.get("paragraph").get("paragraphStyle"),
+                    "markdown": "",
+                    "bullet": ""
                 }
             )
     return paragraph_object

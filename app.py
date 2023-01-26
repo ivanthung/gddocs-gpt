@@ -11,7 +11,8 @@ pricing_dict = {"ada": 0.0004, "babbage": 0.0005, "curie": 0.002, "davinci": 0.0
 st.set_page_config(layout="wide")
 path = "index.html"
 API_KEY = ""
-URL = "https://docs.google.com/document/d/1JD7mIqhSL78gsxtGmBTL3T9ErCXSGlknrPdZVHd0cWA/edit#"
+DEFAULT_URL = ""
+DEFAULT_PROMPT = "Edit the following text, making the language more clear and convincing: "
 
 
 def app():
@@ -35,15 +36,29 @@ def app():
 
     col1, col2 = st.columns(2)
     with col1:
-        if st.session_state.authorized == True:
-            uploaded_file = st.text_input(
-                label="Enter the URL of the Google Docs file you want to edit",
-                value=URL,
-            )
+        if st.session_state.authorized:
+            if(not st.session_state.revise):
+                uploaded_file = st.text_input(
+                    label="Enter the URL of the Google Docs file you want to edit",
+                    value=DEFAULT_URL,
+                )
+            else:
+                uploaded_file = st.text_input(
+                    label="Enter the URL of the Google Docs file you want to edit",
+                    value=st.session_state.revised_url,
+                )
         else:
             uploaded_file = None
             st.write(
                 "Authorize with OpenAI API key in the sidebar to use this service."
+            )
+        if st.session_state.prompt == DEFAULT_PROMPT:
+            st.session_state.prompt = st.text_input(
+                "Editing prompt", value=DEFAULT_PROMPT
+            )
+        else:
+            st.session_state.prompt = st.text_input(
+                "Editing prompt", value=st.session_state.prompt
             )
     with col2:
         st.subheader("Instructions")
@@ -60,48 +75,56 @@ def app():
         """
         )
 
+    ######## DISPLAY FILE ########
+
     if uploaded_file is not None:
         st.session_state["default_checkbox_value"] = False
         document_id = gd.get_documentid(uploaded_file)
-        document = gd.get_doc(document_id)
+        st.session_state.document = gd.get_doc(document_id)
 
-        st.session_state.document = document
-        paragraphs = gd.get_paragraphs(document)
-
-        checkbox_status = []
-        with st.form(key="data_approval"):
-            st.session_state.paragraphs = paragraphs
-            for i, p in enumerate(paragraphs):
-                checkbox_status.append(
-                    st.checkbox(
-                        key=i, label=p, value=st.session_state["default_checkbox_value"]
+        if(st.session_state.document and st.session_state.selected_paragraphs == []):
+            st.session_state.paragraphs = gd.get_paragraphs(st.session_state.document)
+            checkbox_status = []
+            with st.form(key="data_approval"):
+                for i, p in enumerate(st.session_state.paragraphs):
+                    checkbox_status.append(
+                        st.checkbox(
+                            key=i, label=p, value=st.session_state["default_checkbox_value"]
+                        )
                     )
-                )
-            approve_button = st.form_submit_button(label="Calculate costs")
+                approve_button = st.form_submit_button(label="Calculate costs")
 
-        if approve_button:
-            if any(checkbox_status):
-                for i, c in enumerate(checkbox_status):
-                    if c:
-                        st.session_state.selected_paragraphs.append(paragraphs[i])
-                    else:
-                        st.session_state.selected_paragraphs.append("")
-                combined = "/n".join(st.session_state.selected_paragraphs)
-                tokens = int(ai_handler.get_tokens(combined))
+            if approve_button:
+                if any(checkbox_status):
+                    for i, c in enumerate(checkbox_status):
+                        if c:
+                            st.session_state.selected_paragraphs.append(st.session_state.paragraphs[i])
+                        else:
+                            st.session_state.selected_paragraphs.append("")
+                    combined = "/n".join(st.session_state.selected_paragraphs)
+                    tokens = int(ai_handler.get_tokens(combined))
 
-                st.info(
-                    f"This action will consume about: {tokens} tokens from the model 'davinci'. This will cost approximately {round((tokens / 1000) * pricing_dict['davinci'], 4)} dollars.\n Please confirm to proceed.",
-                    icon="ℹ️",
-                )
-            else:
-                st.warning("No paragraphs selected!")
+                    st.info(
+                        f"This action will consume about: {tokens} tokens from the model 'davinci'. This will cost approximately {round((tokens / 1000) * pricing_dict['davinci'], 4)} dollars.\n Please confirm to proceed.",
+                        icon="ℹ️",
+                    )
+                else:
+                    st.warning("No paragraphs selected!")
+        else:
+            st.warning("Document not found. Please check the URL and try again.")
+
+    ######## GENERATE COPY-EDIT ########
 
     if st.session_state.selected_paragraphs != []:
         if st.button("Generate AI-created copy-edit"):
+            print("tripped!")
             with st.spinner("Generating copy-edit..."):
                 st.session_state.response_paragraphs = ai_handler.get_copy_edit(
-                    st.session_state.selected_paragraphs, st.session_state.api_key
+                    st.session_state.selected_paragraphs, st.session_state.api_key, st.session_state.prompt
                 )
+                assert len(st.session_state.response_paragraphs) == len(st.session_state.selected_paragraphs)
+                assert len(st.session_state.paragraphs) == len(st.session_state.selected_paragraphs)
+
             st.header("Preview of copy edits.")
             for i in range(0, len(st.session_state.response_paragraphs)):
                 s1 = st.session_state.paragraphs[i]
@@ -118,19 +141,24 @@ def app():
                 + "_edit_"
                 + datetime.today().strftime("%Y-%m-%d")
             )
+
+            ######## Compose new document from our copy-edit ########
+
             new_id = gd.compose_doc(
                 title=title,
                 original_paragraphs=st.session_state.paragraphs,
                 edited_paragraphs=st.session_state.response_paragraphs,
+                original_doc = st.session_state.document,
             )
 
+            st.session_state.revised_url = f"https://docs.google.com/document/d/{new_id}/edit#"
             st.markdown(
                 get_st_button_a_tag(
-                    f"https://docs.google.com/document/d/{new_id}/edit#",
-                    f"Here's your edit! -> {title}",
-                    unsafe_allow_html=True,
-                )
+                    st.session_state.revised_url,
+                    f"Copy-edit doc title: {title}",
+                ), unsafe_allow_html=True
             )
+            st.session_state.revise = st.button("Revise this edit?")
 
 
 def init_defaults():
@@ -146,6 +174,9 @@ def init_defaults():
     if "submit_botton" not in st.session_state:
         st.session_state.submit_button = False
 
+    if "prompt" not in st.session_state:
+        st.session_state.prompt = DEFAULT_PROMPT
+
     if "authorized" not in st.session_state:
         st.session_state.authorized = False
 
@@ -154,6 +185,12 @@ def init_defaults():
 
     if "document" not in st.session_state:
         st.session_state.document = None
+
+    if "revise" not in st.session_state:
+        st.session_state.revise = False
+
+    if "revise_url" not in st.session_state:
+        st.session_state.revise_url = ""
 
     with st.sidebar:
         st.session_state.api_key = st.text_input(

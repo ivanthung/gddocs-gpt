@@ -27,6 +27,24 @@ def create_styling_request(start_index, end_index, color):
         }
     return request
 
+
+def create_paragraph_styling_request(start_index, end_index, paragraph_style):
+    '''
+    Returns a dictionary in the right format for styling a part of a text.
+    Using color from the COLORS dictionary in utils/constants.py
+    '''
+    request  = {
+            'updateParagraphStyle': {
+                'range': {
+                    'startIndex': start_index,
+                    'endIndex':  end_index
+                },
+                'paragraphStyle': paragraph_style,
+                'fields': 'namedStyleType'
+            }
+        }
+    return request
+
 def create_deletion_request(p_range):
     """
     Deletes a part of a text with start and end index, given by p_range.
@@ -57,4 +75,36 @@ def create_insert_request(index, text):
             'text': text
         }
     }
+    return request
+
+def create_bullet_styling_request(start_index, end_index, bullet_style = 'BULLET_ARROW_DIAMOND_DISC'):
+    '''
+    Returns a dictionary in the right format for styling a part of a text.
+    Using color from the COLORS dictionary in utils/constants.py
+    '''
+    request = {
+            'createParagraphBullets': {
+                'range': {
+                    'startIndex': start_index,
+                    'endIndex':  end_index
+                },
+                'bulletPreset': bullet_style,
+            }
+        }
+
+    return request
+
+def remove_bullet_styling_request(start_index, end_index):
+    '''
+    Removes paragraph bullets
+    '''
+    request = {
+            'deleteParagraphBullets': {
+                'range': {
+                    'startIndex': start_index,
+                    'endIndex':  end_index
+                },
+            }
+        }
+
     return request
