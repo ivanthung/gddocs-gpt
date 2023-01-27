@@ -8,9 +8,7 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 import os
-from dotenv import load_dotenv
 
-MY_ENV_VAR = os.getenv('MY_ENV_VAR')
 from utils.postrequests import (
     create_insert_request,
     create_styling_request,

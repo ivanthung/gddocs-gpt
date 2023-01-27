@@ -38,18 +38,18 @@ def app():
     with col1:
         if st.session_state.authorized:
             if(not st.session_state.revise):
-                uploaded_file = st.text_input(
+                st.session_state.uploaded_file = st.text_input(
                     label="Enter the URL of the Google Docs file you want to edit",
                     value=DEFAULT_URL,
                 )
             else:
-                uploaded_file = st.text_input(
+                st.session_state.uploaded_file = st.text_input(
                     label="Enter the URL of the Google Docs file you want to edit",
                     value=st.session_state.revised_url,
                 )
                 st.session_state.revised_url = ""
         else:
-            uploaded_file = None
+            st.session_state.uploaded_file = None
             st.write(
                 "Authorize with OpenAI API key in the sidebar to use this service."
             )
@@ -74,9 +74,9 @@ def app():
 
     ######## DISPLAY FILE ########
 
-    if uploaded_file is not None:
+    if st.session_state.uploaded_file is not None:
         st.session_state["default_checkbox_value"] = False
-        document_id = gd.get_documentid(uploaded_file)
+        document_id = gd.get_documentid(st.session_state.uploaded_file)
         st.session_state.document = gd.get_doc(document_id)
 
         if(st.session_state.document and st.session_state.selected_paragraphs == []):
@@ -185,6 +185,9 @@ def init_defaults():
 
     if "revise" not in st.session_state:
         st.session_state.revise = False
+
+    if "uploaded_file" not in st.session_state:
+        st.session_state.uploaded_file = None
 
     if "revise_url" not in st.session_state:
         st.session_state.revise_url = ""
