@@ -13,7 +13,7 @@ path = "index.html"
 API_KEY = ""
 DEFAULT_URL = ""
 DEFAULT_PROMPT = "Edit the following text, making the language more clear and convincing: "
-
+DEFAULT_MODEL = "davinci"
 
 def app():
     st.title("First draft editor")
@@ -47,6 +47,7 @@ def app():
                     label="Enter the URL of the Google Docs file you want to edit",
                     value=st.session_state.revised_url,
                 )
+                st.session_state.revised_url = ""
         else:
             uploaded_file = None
             st.write(
@@ -54,24 +55,20 @@ def app():
             )
         if st.session_state.prompt == DEFAULT_PROMPT:
             st.session_state.prompt = st.text_input(
-                "Editing prompt", value=DEFAULT_PROMPT
+                "Editing instructions", value=DEFAULT_PROMPT
             )
         else:
             st.session_state.prompt = st.text_input(
-                "Editing prompt", value=st.session_state.prompt
+                "Editing instructions", value=st.session_state.prompt
             )
     with col2:
-        st.subheader("Instructions")
         st.markdown(
             """
-        This service uses a basic editing prompt to suggest changes to wordfile that you can upload.
-        Instrutions:
-        1. Paste the link to your google docs file
-        2. Select the paragraphs you want to edit.
-        3. Generate the copy-edit.
-        5. Create a new google docs, copy the text from the copy-edit and paste it in the new document.
-        The copy-edit will be included in the text of the wordfile and the original text will be included as a comment.
-        THIS VERSION ONLY WORKS WITH ENGLISH DOCUMENTS.
+        Use GPT to edit your first draft.\n
+        :link: Link to your google docs file\n
+        :white_check_mark: Select the paragraphs to edit.\n
+        :dollar: Calculate cost and generate the copy-edit.\n
+        :sparkles: We created a copy of your document with the copy-edit for you!\n
         """
         )
 
@@ -158,7 +155,7 @@ def app():
                     f"Copy-edit doc title: {title}",
                 ), unsafe_allow_html=True
             )
-            st.session_state.revise = st.button("Revise this edit?")
+            # st.session_state.revise = st.button("Revise this edit?")
 
 
 def init_defaults():
