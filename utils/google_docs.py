@@ -1,12 +1,23 @@
 from __future__ import print_function
-import os.path
 import re
+import os.path
+import streamlit as st
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
-from utils.postrequests import create_insert_request, create_styling_request, create_paragraph_styling_request, create_bullet_styling_request, remove_bullet_styling_request
+import os
+from dotenv import load_dotenv
+
+MY_ENV_VAR = os.getenv('MY_ENV_VAR')
+from utils.postrequests import (
+    create_insert_request,
+    create_styling_request,
+    create_paragraph_styling_request,
+    create_bullet_styling_request,
+    remove_bullet_styling_request,
+)
 from utils.diff_handler import get_difference, create_color_indexes
 
 
@@ -14,9 +25,8 @@ SCOPES = {
     "read": "https://www.googleapis.com/auth/documents.readonly",
     "write": "https://www.googleapis.com/auth/documents",
 }
-
 SUGGEST_MODE = "PREVIEW_SUGGESTIONS_ACCEPTED"
-
+CONFIG = st.secrets["credentials"]
 COLORS = {
     "green": {
         "red": 0.3,
@@ -36,7 +46,9 @@ COLORS = {
 }
 
 
-def compose_doc(title="My Document", original_paragraphs=[], edited_paragraphs=[], original_doc={}):
+def compose_doc(
+    title="My Document", original_paragraphs=[], edited_paragraphs=[], original_doc={}
+):
     """
     1. Composes a document with the given title and paragraphs.
     2. Works backwards from the end of the document to the beginning.
@@ -44,7 +56,11 @@ def compose_doc(title="My Document", original_paragraphs=[], edited_paragraphs=[
     4. Applies original paragraph styles
     5. Returns the document ID.
     """
-    elements = [element for element in original_doc.get("body").get("content") if element.get("paragraph")]
+    elements = [
+        element
+        for element in original_doc.get("body").get("content")
+        if element.get("paragraph")
+    ]
 
     requests = []
     for i in range(0, len(edited_paragraphs)):
@@ -54,8 +70,12 @@ def compose_doc(title="My Document", original_paragraphs=[], edited_paragraphs=[
             end_index = len(original_paragraphs[i])
             if end_index > 1:
                 requests.append(create_styling_request(1, end_index, COLORS["black"]))
-                requests.append(create_paragraph_styling_request(1, end_index, elements[i].get("paragraph").get("paragraphStyle")))
-                if(elements[i].get("paragraph").get("bullet") != None):
+                requests.append(
+                    create_paragraph_styling_request(
+                        1, end_index, elements[i].get("paragraph").get("paragraphStyle")
+                    )
+                )
+                if elements[i].get("paragraph").get("bullet") != None:
                     requests.append(create_bullet_styling_request(1, end_index))
                     print("added bullet styling request")
 
@@ -75,7 +95,6 @@ def compose_doc(title="My Document", original_paragraphs=[], edited_paragraphs=[
             end_index = len(edited_paragraphs[i])
             requests.append(create_styling_request(1, end_index, COLORS["black"]))
             requests.append(create_insert_request(1, edited_paragraphs[i] + "\n"))
-
 
     doc = create_doc(title)
     document_id = doc.get("documentId")
@@ -114,7 +133,7 @@ def get_doc(document_id):
     return document
 
 
-def authorize(scope):
+def authorize(scope="read"):
     "Authorizing to the Docs API. Returns the service with credentials"
     # If modifying these scopes, delete the file token.json.
     if scope == "read":
@@ -134,9 +153,10 @@ def authorize(scope):
             os.remove("/Users/ivanthung/code/ivanthung/google_doc_editor/token.json")
             authorize(scope)
         else:
-            flow = InstalledAppFlow.from_client_secrets_file(
-                "credentials.json", sel_scope
-            )
+            # flow = InstalledAppFlow.from_client_secrets_file(
+            #     "credentials.json", sel_scope
+            # )
+            flow = InstalledAppFlow.from_client_config(CONFIG, sel_scope)
             creds = flow.run_local_server(port=0)
         # Save the credentials for the next run
         if not os.path.exists("token.json"):
@@ -259,7 +279,7 @@ def get_paragraphs_with_index(document):
                     "text": paragraph_text,
                     "style": value.get("paragraph").get("paragraphStyle"),
                     "markdown": "",
-                    "bullet": ""
+                    "bullet": "",
                 }
             )
     return paragraph_object

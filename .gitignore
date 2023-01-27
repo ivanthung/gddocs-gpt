@@ -3,3 +3,5 @@ token.json
 __pycache__
 .python-version
 *.ipynb
+*.env
+*.streamlit

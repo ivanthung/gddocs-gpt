@@ -1,15 +1,17 @@
 import difflib
 
+
 def get_difference(s1, s2):
-    '''
+    """
     Using difflib, returns a list of strings with the differences between s1 and s2.
     Adding a '+' in front of the string means it's an addition.
     Subtracting a '-' in front of the string means it's a deletion.
     ? means it's a change that is not an addition or deletion.
-    '''
+    """
     diff = difflib.Differ()
     difference = list(diff.compare(s1.split(), s2.split()))
     return difference
+
 
 def create_color_indexes(diff):
     """
@@ -37,34 +39,37 @@ def create_color_indexes(diff):
         elif word.startswith("?"):
             continue
         else:
-            index_tracker += len(word) -1
+            index_tracker += len(word) - 1
     return indexes
 
+
 def diff_to_html(diff):
-    '''
+    """
     Returns a string of html with the differences between s1 and s2.
     Adds green color to additions and strikethrough to deletions.
-    '''
+    """
     markdown = ""
     for line in diff:
         if line.startswith("+"):
             markdown += f"<span style='color:green'>{line[1:]}</span>"
         elif line.startswith("-"):
             markdown += f"<s>{line[1:]}</s>"
-        elif line.startswith(
-            "?"):
+        elif line.startswith("?"):
             continue
         else:
             markdown += f"{line}"
 
-    html_start = '<meta http-equiv="Content-Type" content="text/html; charset=utf-8"><head>'
-    html_end = '</head>'
+    html_start = (
+        '<meta http-equiv="Content-Type" content="text/html; charset=utf-8"><head>'
+    )
+    html_end = "</head>"
     markdown = html_start + markdown + html_end
     return markdown
 
+
 def render_diff(s1, s2):
-    '''
+    """
     Creates a diff list and returns a string of html with the differences between s1 and s2.
-    '''
+    """
     diff = get_difference(s1, s2)
     return diff_to_html(diff)
